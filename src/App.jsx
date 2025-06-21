@@ -1,20 +1,21 @@
 // 📁 src/App.jsx
 import React, { useEffect, useState } from "react";
 import {
-  HashRouter as Router, // ✅ заменено с BrowserRouter
+  HashRouter as Router,
   Routes,
   Route,
   NavLink,
 } from "react-router-dom";
 import TodayClients from "./pages/TodayClients";
 import OverdueClients from "./pages/OverdueClients";
-import ProfilePage from "./pages/ProfilePage"; // ✅ Страница профиля
+import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./components/AuthPage";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./redux/store";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase/config";
+import { auth, rtdb } from "./firebase/config";
 import { setUser, logout } from "./redux/sliceClient";
+import { ref, get } from "firebase/database";
 
 // 📦 Основная разметка навигации и маршрутов
 const Layout = () => {
@@ -63,19 +64,37 @@ const Layout = () => {
   );
 };
 
-// ✅ Обёртка с логикой аутентификации и спиннером
+// 🔁 Обёртка с логикой аутентификации и восстановлением роли
 const AppWrapper = () => {
   const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const role = localStorage.getItem("role") || "user";
-        dispatch(
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role })
-        );
+        try {
+          const uid = firebaseUser.uid;
+          const roleSnap = await get(ref(rtdb, `users/${uid}/role`));
+          const role = roleSnap.exists() ? roleSnap.val() : "user";
+
+          dispatch(
+            setUser({
+              uid,
+              email: firebaseUser.email,
+              role,
+            })
+          );
+        } catch (e) {
+          console.error("Ошибка при получении роли:", e);
+          dispatch(
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              role: "user",
+            })
+          );
+        }
       } else {
         dispatch(logout());
       }
@@ -96,7 +115,7 @@ const AppWrapper = () => {
   return user?.email ? <Layout /> : <AuthPage />;
 };
 
-// 🧩 Главный компонент
+// 🧰 Главный компонент
 const App = () => (
   <Provider store={store}>
     <Router>
