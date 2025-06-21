@@ -22,7 +22,15 @@ const OverdueClients = () => {
     return () => unsub();
   }, []);
 
-  const updateStatus = (id, status, comment = "") => update(ref(rtdb, `clients/${id}`), { status, comment });
+ const updateStatus = (id, status, comment = "") => {
+  const updates = { status };
+  if (status === "paid") {
+    updates.paidAt = new Date().toISOString(); // 🟢 фиксирует дату оплаты
+  }
+  if (comment) updates.comment = comment;
+  update(ref(rtdb, `clients/${id}`), updates);
+};
+
   const removeClient = (id) => remove(ref(rtdb, `clients/${id}`));
 
   const filtered = clients.filter((c) => {

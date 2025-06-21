@@ -16,7 +16,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, rtdb } from "./firebase/config";
 import { setUser, logout } from "./redux/sliceClient";
 import { ref, get } from "firebase/database";
-
+import PaymentsHistoryPage from "./pages/ClientsStore";
 // 📦 Основная разметка навигации и маршрутов
 const Layout = () => {
   return (
@@ -52,12 +52,24 @@ const Layout = () => {
         >
           Профиль
         </NavLink>
+        <NavLink
+          to="/payStore"
+          className={({ isActive }) =>
+            isActive
+              ? "font-semibold text-blue-600"
+              : "text-gray-600 hover:text-blue-600"
+          }
+        >
+          История клиентов
+        </NavLink>
       </nav>
 
       <Routes>
         <Route path="/today" element={<TodayClients />} />
         <Route path="/overdue" element={<OverdueClients />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/payStore" element={<PaymentsHistoryPage />} />
+        
         <Route path="*" element={<TodayClients />} />
       </Routes>
     </div>

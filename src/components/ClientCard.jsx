@@ -31,7 +31,7 @@ const getStatusLabel = (status, isRescheduledToday) => {
   }
 };
 
-const ClientCard = ({ client,  onStatusChange, onDelete, loading }) => {
+const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
   const user = useSelector((state) => state.user);
 
   let isRescheduledToday = false;
@@ -63,13 +63,17 @@ const ClientCard = ({ client,  onStatusChange, onDelete, loading }) => {
         {getStatusLabel(client.status, isRescheduledToday)}
       </div>
 
-      <p className="text-sm mb-1 text-gray-600">
-        📞 Телефон: <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">{client.phone}</a>
-      </p>
+      {client.phone && (
+        <p className="text-sm mb-1 text-gray-600">
+          📞 Телефон: <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">{client.phone}</a>
+        </p>
+      )}
 
-      <p className="text-sm mb-1 text-gray-600">
-        👤 Поручитель: <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">{client.guarantorPhone}</a>
-      </p>
+      {client.guarantorPhone && (
+        <p className="text-sm mb-1 text-gray-600">
+          👤 Поручитель: <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">{client.guarantorPhone}</a>
+        </p>
+      )}
 
       <p className="text-sm mb-1 text-gray-600">
         💰 Сумма оплаты: <span className="text-black">{client.paymentAmount}</span>
@@ -78,6 +82,12 @@ const ClientCard = ({ client,  onStatusChange, onDelete, loading }) => {
       <p className="text-sm mb-3 text-gray-600">
         📝 Комментарий: <span className="text-black">{client.comment || <em>Нет</em>}</span>
       </p>
+
+      {client.paidAt && (
+        <p className="text-sm mb-2 text-green-700">
+          ✅ Оплачено: <strong>{new Date(client.paidAt).toLocaleDateString()}</strong>
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {client.status !== "paid" && (
