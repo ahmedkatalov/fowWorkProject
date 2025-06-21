@@ -1,139 +1,210 @@
-import React from "react";
+import React, { useState } from "react";
+import { ref, push } from "firebase/database";
+import { rtdb } from "../firebase/config";
 import { useSelector } from "react-redux";
 
-const getStatusStyle = (status, isRescheduledToday) => {
-  if (isRescheduledToday) return "bg-green-100 border-l-4 border-green-600";
-  switch (status) {
-    case "paid":
-      return "bg-green-100 border-l-4 border-green-500";
-    case "no_answer":
-      return "bg-red-100 border-l-4 border-red-500";
-    case "rescheduled":
-      return "bg-yellow-100 border-l-4 border-yellow-500";
-    default:
-      return "bg-orange-100 border-l-4 border-orange-500";
+const AddClientForm = () => {
+  const currentUser = useSelector((state) => state.user);
+  const [formState, setFormState] = useState({
+    fullName: "",
+    phone: "",
+    guarantorPhone: "",
+    paymentAmount: "",
+    status: "pending",
+    comment: "",
+  });
+  const [timing, setTiming] = useState("today");
+  const [errors, setErrors] = useState({});
+  const [showForm, setShowForm] = useState(false);
+
+  if (currentUser?.role !== "admin") return null; // 🔒 Только для admin
+
+const validate = () => {
+  const newErrors = {};
+  const phoneRegex = /^\d+$/; // Только цифры
+  const amountRegex = /^\d+$/;
+
+  if (formState.phone && !phoneRegex.test(formState.phone)) {
+    newErrors.phone = "Введите только цифры";
   }
+
+  if (formState.guarantorPhone && !phoneRegex.test(formState.guarantorPhone)) {
+    newErrors.guarantorPhone = "Введите только цифры";
+  }
+
+  if (!amountRegex.test(formState.paymentAmount)) {
+    newErrors.paymentAmount = "Введите только цифры";
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
 };
 
-const getStatusLabel = (status, isRescheduledToday) => {
-  if (isRescheduledToday)
-    return <span className="text-sm text-green-700 font-bold">Перенос на сегодня</span>;
 
-  switch (status) {
-    case "paid":
-      return <span className="text-sm text-green-600 font-medium">Оплачено</span>;
-    case "no_answer":
-      return <span className="text-sm text-red-600 font-medium">Не отвечает</span>;
-    case "rescheduled":
-      return <span className="text-sm text-yellow-600 font-medium">Перенос</span>;
-    default:
-      return <span className="text-sm text-orange-600 font-medium">В ожидании</span>;
-  }
-};
+  const handleAdd = async () => {
+    if (!validate()) return;
 
-const ClientCard = ({ client,  onStatusChange, onDelete, loading }) => {
-  const user = useSelector((state) => state.user);
+    const clientsRef = ref(rtdb, "clients");
+    const date = new Date();
+    if (timing === "overdue") date.setDate(date.getDate() - 1);
 
-  let isRescheduledToday = false;
+    const newClient = {
+      ...formState,
+      createdAt: date.toISOString(),
+    };
 
-  if (client.status === "rescheduled" && client.comment) {
-    try {
-      const match = client.comment.match(/\b([1-9]|[12][0-9]|3[01])\b/);
-      const commentDay = match ? parseInt(match[1], 10) : null;
-      const today = new Date().getDate();
+    await push(clientsRef, newClient);
 
-      if (commentDay === today) {
-        isRescheduledToday = true;
-      }
-    } catch {}
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-10">
-        <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+    setFormState({
+      fullName: "",
+      phone: "",
+      guarantorPhone: "",
+      paymentAmount: "",
+      status: "pending",
+      comment: "",
+    });
+    setTiming("today");
+    setErrors({});
+    setShowForm(false);
+  };
 
   return (
-    <div className={`p-4 rounded-lg shadow mb-4 ${getStatusStyle(client.status, isRescheduledToday)}`}>
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold">{client.fullName}</h3>
-        {getStatusLabel(client.status, isRescheduledToday)}
-      </div>
+    <div className="mb-6">
+      {!showForm ? (
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+        >
+          + Добавить клиента
+        </button>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAdd();
+          }}
+          className="space-y-4 border p-4 rounded-lg shadow bg-white max-w-2xl mx-auto"
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center mb-1">
+            <h3 className="text-lg font-semibold">Новый клиент</h3>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="text-gray-500 hover:text-red-500 text-sm"
+            >
+              ✕ Закрыть
+            </button>
+          </div>
 
-      {client.phone && (
-        <p className="text-sm mb-1 text-gray-600">
-          📞 Телефон: <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">{client.phone}</a>
-        </p>
+          {/* Сегодня / Просрочено */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Клиент для:</label>
+            <select
+              value={timing}
+              onChange={(e) => setTiming(e.target.value)}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="today">Сегодня</option>
+              <option value="overdue">Просрочено</option>
+            </select>
+          </div>
+
+          {/* ФИО */}
+          <div>
+            <label className="block text-sm font-medium mb-1">ФИО</label>
+            <input
+              type="text"
+              placeholder="ФИО"
+              value={formState.fullName}
+              onChange={(e) => setFormState({ ...formState, fullName: e.target.value })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Телефоны */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Телефон клиента</label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="\d*"
+                placeholder="10–15 цифр"
+                value={formState.phone}
+                onChange={(e) =>
+                  setFormState({
+                    ...formState,
+                    phone: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                  errors.phone ? "border-red-500" : ""
+                }`}
+              />
+              {errors.phone && (
+                <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+              )}
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Телефон поручителя</label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="\d*"
+                placeholder="10–15 цифр"
+                value={formState.guarantorPhone}
+                onChange={(e) =>
+                  setFormState({
+                    ...formState,
+                    guarantorPhone: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                  errors.guarantorPhone ? "border-red-500" : ""
+                }`}
+              />
+              {errors.guarantorPhone && (
+                <p className="text-red-500 text-xs mt-1">{errors.guarantorPhone}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Сумма */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Сумма оплаты</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="₸"
+              value={formState.paymentAmount}
+              onChange={(e) => setFormState({ ...formState, paymentAmount: e.target.value })}
+              className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                errors.paymentAmount ? "border-red-500" : ""
+              }`}
+              required
+            />
+            {errors.paymentAmount && (
+              <p className="text-red-500 text-xs mt-1">{errors.paymentAmount}</p>
+            )}
+          </div>
+
+          {/* Кнопка */}
+          <div>
+            <button
+              type="submit"
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition w-full sm:w-auto"
+            >
+              Добавить клиента
+            </button>
+          </div>
+        </form>
       )}
-
-      {client.guarantorPhone && (
-        <p className="text-sm mb-1 text-gray-600">
-          👤 Поручитель: <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">{client.guarantorPhone}</a>
-        </p>
-      )}
-
-      <p className="text-sm mb-1 text-gray-600">
-        💰 Сумма оплаты: <span className="text-black">{client.paymentAmount}</span>
-      </p>
-
-      <p className="text-sm mb-3 text-gray-600">
-        📝 Комментарий: <span className="text-black">{client.comment || <em>Нет</em>}</span>
-      </p>
-
-      <div className="flex flex-wrap gap-2">
-        {client.status !== "paid" && (
-          <button
-            onClick={() => onStatusChange(client.id, "paid")}
-            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-          >
-            Оплатил
-          </button>
-        )}
-
-        {client.status !== "no_answer" && (
-          <button
-            onClick={() => onStatusChange(client.id, "no_answer")}
-            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-          >
-            Не отвечает
-          </button>
-        )}
-
-        {client.status !== "rescheduled" && (
-          <button
-            onClick={() => {
-              const comment = prompt("Введите дату или текст переноса (например: 'на 21')");
-              if (comment) onStatusChange(client.id, "rescheduled", comment);
-            }}
-            className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-          >
-            Перенос оплаты
-          </button>
-        )}
-
-        {client.status !== "pending" && (
-          <button
-            onClick={() => onStatusChange(client.id, "pending")}
-            className="bg-gray-400 text-white px-3 py-1 rounded text-sm hover:bg-gray-500"
-          >
-            В ожидании
-          </button>
-        )}
-
-        {user.role === "admin" && (
-          <button
-            onClick={() => onDelete(client.id)}
-            className="border border-red-500 text-red-500 px-3 py-1 rounded text-sm hover:bg-red-50"
-          >
-            Удалить
-          </button>
-        )}
-      </div>
     </div>
   );
 };
 
-export default ClientCard;
+export default AddClientForm;
