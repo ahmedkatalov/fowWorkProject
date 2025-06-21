@@ -31,8 +31,8 @@ const getStatusLabel = (status, isRescheduledToday) => {
   }
 };
 
-const ClientCard = ({ client, isAdmin, onStatusChange, onDelete }) => {
-    const user = useSelector((state) => state.user);
+const ClientCard = ({ client,  onStatusChange, onDelete, loading }) => {
+  const user = useSelector((state) => state.user);
 
   let isRescheduledToday = false;
 
@@ -48,6 +48,14 @@ const ClientCard = ({ client, isAdmin, onStatusChange, onDelete }) => {
     } catch {}
   }
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`p-4 rounded-lg shadow mb-4 ${getStatusStyle(client.status, isRescheduledToday)}`}>
       <div className="flex justify-between items-center mb-2">
@@ -56,17 +64,11 @@ const ClientCard = ({ client, isAdmin, onStatusChange, onDelete }) => {
       </div>
 
       <p className="text-sm mb-1 text-gray-600">
-        📞 Телефон:{" "}
-        <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">
-          {client.phone}
-        </a>
+        📞 Телефон: <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">{client.phone}</a>
       </p>
 
       <p className="text-sm mb-1 text-gray-600">
-        👤 Поручитель:{" "}
-        <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">
-          {client.guarantorPhone}
-        </a>
+        👤 Поручитель: <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">{client.guarantorPhone}</a>
       </p>
 
       <p className="text-sm mb-1 text-gray-600">
@@ -117,16 +119,14 @@ const ClientCard = ({ client, isAdmin, onStatusChange, onDelete }) => {
           </button>
         )}
 
-       {user.role === "admin" && (
+        {user.role === "admin" && (
           <button
             onClick={() => onDelete(client.id)}
             className="border border-red-500 text-red-500 px-3 py-1 rounded text-sm hover:bg-red-50"
           >
             Удалить
           </button>
-      )}
-
- 
+        )}
       </div>
     </div>
   );
