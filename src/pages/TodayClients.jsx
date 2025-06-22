@@ -1,3 +1,4 @@
+// TodayClients.jsx
 import React, { useEffect, useState } from "react";
 import { ref, onValue, update, remove } from "firebase/database";
 import { rtdb } from "../firebase/config";
@@ -23,14 +24,15 @@ const TodayClients = () => {
     return () => unsub();
   }, []);
 
- const updateStatus = (id, status, comment = "") => {
-  const updates = { status };
-  if (status === "paid") {
-    updates.paidAt = new Date().toISOString(); // 🟢 фиксирует дату оплаты
-  }
-  if (comment) updates.comment = comment;
-  update(ref(rtdb, `clients/${id}`), updates);
-};
+  const updateStatus = (id, status, comment = "", extra = {}) => {
+    const updates = {
+      status,
+      ...(comment && { comment }),
+      ...(status === "paid" && { paidAt: new Date().toISOString() }),
+      ...extra,
+    };
+    update(ref(rtdb, `clients/${id}`), updates);
+  };
 
   const removeClient = (id) => remove(ref(rtdb, `clients/${id}`));
 
@@ -46,13 +48,12 @@ const TodayClients = () => {
   return (
     <>
       <AddClientForm />
-  {user.role === "admin" && (
- <div className="mb-2 text-sm text-gray-700">
-        💰 <strong>Сегодняшний долг:</strong> {totalTodayDebt.toLocaleString()}₽
-      </div>
-
+      {user.role === "admin" && (
+        <div className="mb-2 text-sm text-gray-700">
+          💰 <strong>Сегодняшний долг:</strong> {totalTodayDebt.toLocaleString()}₽
+        </div>
       )}
-     
+
       <div className="flex flex-wrap gap-2 mb-4">
         {[
           ["all", "Все"],
@@ -73,7 +74,9 @@ const TodayClients = () => {
         ))}
       </div>
 
-      {filtered.length === 0 ? <p className="text-gray-500">Клиентов нет.</p> :
+      {filtered.length === 0 ? (
+        <p className="text-gray-500">Клиентов нет.</p>
+      ) : (
         filtered.map((c) => (
           <ClientCard
             key={c.id}
@@ -82,7 +85,8 @@ const TodayClients = () => {
             onStatusChange={updateStatus}
             onDelete={removeClient}
           />
-        ))}
+        ))
+      )}
     </>
   );
 };

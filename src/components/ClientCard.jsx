@@ -1,17 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
+
+const DEFAULT_RECIPIENTS = ["Ахмед", "Магомед", "Сафаи"];
 
 const getStatusStyle = (status, isRescheduledToday) => {
   if (isRescheduledToday) return "bg-green-100 border-l-4 border-green-600";
   switch (status) {
-    case "paid":
-      return "bg-green-100 border-l-4 border-green-500";
-    case "no_answer":
-      return "bg-red-100 border-l-4 border-red-500";
-    case "rescheduled":
-      return "bg-yellow-100 border-l-4 border-yellow-500";
-    default:
-      return "bg-orange-100 border-l-4 border-orange-500";
+    case "paid": return "bg-green-100 border-l-4 border-green-500";
+    case "no_answer": return "bg-red-100 border-l-4 border-red-500";
+    case "rescheduled": return "bg-yellow-100 border-l-4 border-yellow-500";
+    default: return "bg-orange-100 border-l-4 border-orange-500";
   }
 };
 
@@ -20,37 +18,55 @@ const getStatusLabel = (status, isRescheduledToday) => {
     return <span className="text-sm text-green-700 font-bold">Перенос на сегодня</span>;
 
   switch (status) {
-    case "paid":
-      return <span className="text-sm text-green-600 font-medium">Оплачено</span>;
-    case "no_answer":
-      return <span className="text-sm text-red-600 font-medium">Не отвечает</span>;
-    case "rescheduled":
-      return <span className="text-sm text-yellow-600 font-medium">Перенос</span>;
-    default:
-      return <span className="text-sm text-orange-600 font-medium">В ожидании</span>;
+    case "paid": return <span className="text-sm text-green-600 font-medium">Оплачено</span>;
+    case "no_answer": return <span className="text-sm text-red-600 font-medium">Не отвечает</span>;
+    case "rescheduled": return <span className="text-sm text-yellow-600 font-medium">Перенос</span>;
+    default: return <span className="text-sm text-orange-600 font-medium">В ожидании</span>;
   }
 };
 
 const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
   const user = useSelector((state) => state.user);
+  const [showModal, setShowModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [transferTo, setTransferTo] = useState("");
 
   let isRescheduledToday = false;
-
   if (client.status === "rescheduled" && client.comment) {
     try {
       const match = client.comment.match(/\b([1-9]|[12][0-9]|3[01])\b/);
       const commentDay = match ? parseInt(match[1], 10) : null;
       const today = new Date().getDate();
-
-      if (commentDay === today) {
-        isRescheduledToday = true;
-      }
+      if (commentDay === today) isRescheduledToday = true;
     } catch {}
   }
 
+  const handlePaid = () => setShowModal(true);
+
+  const confirmPayment = () => {
+    const extra = paymentMethod === "cash"
+      ? { paymentMethod: "cash" }
+      : { paymentMethod: "transfer", transferTo };
+    onStatusChange(client.id, "paid", client.comment || "", extra);
+    setShowModal(false);
+    setPaymentMethod(null);
+    setTransferTo("");
+  };
+
+  const handleResetToPending = () => {
+    const confirmReset = window.confirm("Вы уверены, что хотите сбросить статус на 'Ожидание'? Данные об оплате будут удалены.");
+    if (confirmReset) {
+      onStatusChange(client.id, "pending", "", {
+        paidAt: null,
+        paymentMethod: null,
+        transferTo: null,
+      });
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-10">
+      <div className="flex justify-center py-10">
         <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
       </div>
     );
@@ -64,41 +80,54 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
       </div>
 
       {client.phone && (
-        <p className="text-sm mb-1 text-gray-600">
-          📞 Телефон: <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">{client.phone}</a>
+        <p className="text-sm text-gray-600">
+          📞 Телефон:{" "}
+          <a href={`tel:${client.phone}`} className="text-blue-600 underline hover:text-blue-800">
+            {client.phone}
+          </a>
         </p>
       )}
 
       {client.guarantorPhone && (
-        <p className="text-sm mb-1 text-gray-600">
-          👤 Поручитель: <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">{client.guarantorPhone}</a>
+        <p className="text-sm text-gray-600">
+          👤 Поручитель:{" "}
+          <a href={`tel:${client.guarantorPhone}`} className="text-blue-600 underline hover:text-blue-800">
+            {client.guarantorPhone}
+          </a>
         </p>
       )}
 
-      <p className="text-sm mb-1 text-gray-600">
+      <p className="text-sm text-gray-600">
         💰 Сумма оплаты: <span className="text-black">{client.paymentAmount}</span>
       </p>
 
-      <p className="text-sm mb-3 text-gray-600">
-        📝 Комментарий: <span className="text-black">{client.comment || <em>Нет</em>}</span>
-      </p>
+      {client.status === "rescheduled" && client.comment && (
+        <p className="text-sm text-yellow-800">
+          📆 Перенос: <strong>{client.comment}</strong>
+        </p>
+      )}
 
       {client.paidAt && (
-        <p className="text-sm mb-2 text-green-700">
+        <p className="text-sm text-green-700">
           ✅ Оплачено: <strong>{new Date(client.paidAt).toLocaleDateString()}</strong>
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      {client.paymentMethod && (
+        <p className="text-sm text-gray-700">
+          💳 Метод оплаты:{" "}
+          <strong>
+            {client.paymentMethod === "cash" ? "Наличные" : `Перевод на ${client.transferTo}`}
+          </strong>
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2 mt-3">
         {client.status !== "paid" && (
-          <button
-            onClick={() => onStatusChange(client.id, "paid")}
-            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-          >
+          <button onClick={handlePaid} className="bg-green-600 text-white px-3 py-1 rounded">
             Оплатил
           </button>
         )}
-
         {client.status !== "no_answer" && (
           <button
             onClick={() => onStatusChange(client.id, "no_answer")}
@@ -107,7 +136,6 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
             Не отвечает
           </button>
         )}
-
         {client.status !== "rescheduled" && (
           <button
             onClick={() => {
@@ -119,25 +147,79 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
             Перенос оплаты
           </button>
         )}
-
         {client.status !== "pending" && (
           <button
-            onClick={() => onStatusChange(client.id, "pending")}
+            onClick={handleResetToPending}
             className="bg-gray-400 text-white px-3 py-1 rounded text-sm hover:bg-gray-500"
           >
             В ожидании
           </button>
         )}
-
         {user.role === "admin" && (
           <button
             onClick={() => onDelete(client.id)}
-            className="border border-red-500 text-red-500 px-3 py-1 rounded text-sm hover:bg-red-50"
+            className="text-red-600 border border-red-500 px-3 py-1 rounded"
           >
             Удалить
           </button>
         )}
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg w-80 shadow">
+            <h3 className="text-lg font-bold mb-4">Выберите метод оплаты</h3>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setPaymentMethod("cash");
+                  confirmPayment();
+                }}
+                className="bg-green-500 text-white py-2 rounded"
+              >
+                Наличные
+              </button>
+              <button
+                onClick={() => setPaymentMethod("transfer")}
+                className="bg-blue-500 text-white py-2 rounded"
+              >
+                Перевод
+              </button>
+              {paymentMethod === "transfer" && (
+                <div className="flex flex-col gap-2">
+                  <select
+                    className="border px-3 py-2 rounded"
+                    value={transferTo}
+                    onChange={(e) => setTransferTo(e.target.value)}
+                  >
+                    <option value="">-- выберите получателя --</option>
+                    {DEFAULT_RECIPIENTS.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={confirmPayment}
+                    disabled={!transferTo}
+                    className="bg-purple-600 text-white py-2 rounded disabled:opacity-50"
+                  >
+                    Подтвердить
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setPaymentMethod(null);
+                  setTransferTo("");
+                }}
+                className="text-sm text-gray-500 mt-3 underline"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

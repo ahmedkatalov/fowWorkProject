@@ -1,3 +1,4 @@
+// OverdueClients.jsx
 import React, { useEffect, useState } from "react";
 import { ref, onValue, update, remove } from "firebase/database";
 import { rtdb } from "../firebase/config";
@@ -6,7 +7,7 @@ import { isToday, parseISO } from "date-fns";
 import { useSelector } from "react-redux";
 
 const OverdueClients = () => {
-    const user = useSelector((state) => state.user);
+  const user = useSelector((state) => state.user);
   const [clients, setClients] = useState([]);
   const [filter, setFilter] = useState("all");
 
@@ -22,21 +23,23 @@ const OverdueClients = () => {
     return () => unsub();
   }, []);
 
- const updateStatus = (id, status, comment = "") => {
-  const updates = { status };
-  if (status === "paid") {
-    updates.paidAt = new Date().toISOString(); // 🟢 фиксирует дату оплаты
-  }
-  if (comment) updates.comment = comment;
-  update(ref(rtdb, `clients/${id}`), updates);
-};
+  const updateStatus = (id, status, comment = "", extra = {}) => {
+    const updates = {
+      status,
+      ...(comment && { comment }),
+      ...(status === "paid" && { paidAt: new Date().toISOString() }),
+      ...extra,
+    };
+    update(ref(rtdb, `clients/${id}`), updates);
+  };
 
   const removeClient = (id) => remove(ref(rtdb, `clients/${id}`));
 
   const filtered = clients.filter((c) => {
     const date = c.createdAt ? parseISO(c.createdAt) : null;
+    const isClientFromToday = date && isToday(date);
     return (
-      date && !isToday(date) && c.status !== "paid" && (filter === "all" || c.status === filter)
+      !isClientFromToday && c.status !== "paid" && (filter === "all" || c.status === filter)
     );
   });
 
@@ -44,14 +47,11 @@ const OverdueClients = () => {
 
   return (
     <>
-      <div className="mb-2 text-sm text-gray-700">
-  {user.role === "admin" && (
-        <div className="mb-4 p-3 bg-yellow-50 rounded">
-                💸 <strong>Просроченный долг:</strong> {totalOverdueDebt.toLocaleString()}₽
+      {user.role === "admin" && (
+        <div className="mb-4 p-3 bg-yellow-50 rounded text-sm text-gray-700">
+          💸 <strong>Просроченный долг:</strong> {totalOverdueDebt.toLocaleString()}₽
         </div>
       )}
-
-      </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
         {[
@@ -73,7 +73,9 @@ const OverdueClients = () => {
         ))}
       </div>
 
-      {filtered.length === 0 ? <p className="text-gray-500">Клиентов нет.</p> :
+      {filtered.length === 0 ? (
+        <p className="text-gray-500">Клиентов нет.</p>
+      ) : (
         filtered.map((c) => (
           <ClientCard
             key={c.id}
@@ -82,7 +84,8 @@ const OverdueClients = () => {
             onStatusChange={updateStatus}
             onDelete={removeClient}
           />
-        ))}
+        ))
+      )}
     </>
   );
 };
