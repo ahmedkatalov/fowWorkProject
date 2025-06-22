@@ -103,7 +103,9 @@ const PaymentsHistoryPage = () => {
               <option key={date} value={date}>{date}</option>
             ))}
           </select>
-
+            {
+            
+            }
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-1">Общая прибыль за день:</h3>
             {profit !== null ? (

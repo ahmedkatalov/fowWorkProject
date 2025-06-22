@@ -5,6 +5,8 @@ import {
   Routes,
   Route,
   NavLink,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
 import TodayClients from "./pages/TodayClients";
 import OverdueClients from "./pages/OverdueClients";
@@ -17,8 +19,23 @@ import { auth, rtdb } from "./firebase/config";
 import { setUser, logout } from "./redux/sliceClient";
 import { ref, get } from "firebase/database";
 import PaymentsHistoryPage from "./pages/ClientsStore";
-// 📦 Основная разметка навигации и маршрутов
+
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+// 📦 Навигация и защита
 const Layout = () => {
+  const user = useSelector((state) => state.user);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.pathname === "/payStore" && user.role !== "admin") {
+      toast.warn("У вас нет прав доступа к этой странице, так как вы не админ");
+      navigate("/today");
+    }
+  }, [location.pathname, user.role, navigate]);
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <nav className="flex gap-4 mb-6 flex-wrap">
@@ -69,14 +86,12 @@ const Layout = () => {
         <Route path="/overdue" element={<OverdueClients />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/payStore" element={<PaymentsHistoryPage />} />
-        
         <Route path="*" element={<TodayClients />} />
       </Routes>
     </div>
   );
 };
 
-// 🔁 Обёртка с логикой аутентификации и восстановлением роли
 const AppWrapper = () => {
   const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
@@ -90,22 +105,10 @@ const AppWrapper = () => {
           const roleSnap = await get(ref(rtdb, `users/${uid}/role`));
           const role = roleSnap.exists() ? roleSnap.val() : "user";
 
-          dispatch(
-            setUser({
-              uid,
-              email: firebaseUser.email,
-              role,
-            })
-          );
+          dispatch(setUser({ uid, email: firebaseUser.email, role }));
         } catch (e) {
           console.error("Ошибка при получении роли:", e);
-          dispatch(
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              role: "user",
-            })
-          );
+          dispatch(setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" }));
         }
       } else {
         dispatch(logout());
@@ -124,10 +127,14 @@ const AppWrapper = () => {
     );
   }
 
-  return user?.email ? <Layout /> : <AuthPage />;
+  return (
+    <>
+      <ToastContainer position="top-center" />
+      {user?.email ? <Layout /> : <AuthPage />}
+    </>
+  );
 };
 
-// 🧰 Главный компонент
 const App = () => (
   <Provider store={store}>
     <Router>
