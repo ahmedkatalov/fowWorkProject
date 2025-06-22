@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 
-const DEFAULT_RECIPIENTS = ["Ахмед", "Магомед", "Сафаи"];
+const DEFAULT_RECIPIENTS = ["Муслим", "Магомед", "Сафаи"];
 
 const getStatusStyle = (status, isRescheduledToday) => {
   if (isRescheduledToday) return "bg-green-100 border-l-4 border-green-600";

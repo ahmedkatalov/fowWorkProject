@@ -17,29 +17,28 @@ const AddClientForm = () => {
   const [errors, setErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
 
-  if (currentUser?.role !== "admin") return null; // 🔒 Только для admin
+  if (currentUser?.role !== "admin") return null;
 
-const validate = () => {
-  const newErrors = {};
-  const phoneRegex = /^\d+$/; // Только цифры
-  const amountRegex = /^\d+$/;
+  const validate = () => {
+    const newErrors = {};
+    const phoneRegex = /^\d+$/;
+    const amountRegex = /^\d+$/;
 
-  if (formState.phone && !phoneRegex.test(formState.phone)) {
-    newErrors.phone = "Введите только цифры";
-  }
+    if (formState.phone && !phoneRegex.test(formState.phone)) {
+      newErrors.phone = "Введите только цифры";
+    }
 
-  if (formState.guarantorPhone && !phoneRegex.test(formState.guarantorPhone)) {
-    newErrors.guarantorPhone = "Введите только цифры";
-  }
+    if (formState.guarantorPhone && !phoneRegex.test(formState.guarantorPhone)) {
+      newErrors.guarantorPhone = "Введите только цифры";
+    }
 
-  if (!amountRegex.test(formState.paymentAmount)) {
-    newErrors.paymentAmount = "Введите только цифры";
-  }
+    if (!amountRegex.test(formState.paymentAmount)) {
+      newErrors.paymentAmount = "Введите только цифры";
+    }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
-
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleAdd = async () => {
     if (!validate()) return;
@@ -85,7 +84,6 @@ const validate = () => {
           }}
           className="space-y-4 border p-4 rounded-lg shadow bg-white max-w-2xl mx-auto"
         >
-          {/* Header */}
           <div className="flex justify-between items-center mb-1">
             <h3 className="text-lg font-semibold">Новый клиент</h3>
             <button
@@ -97,7 +95,6 @@ const validate = () => {
             </button>
           </div>
 
-          {/* Сегодня / Просрочено */}
           <div>
             <label className="block text-sm font-medium mb-1">Клиент для:</label>
             <select
@@ -110,7 +107,6 @@ const validate = () => {
             </select>
           </div>
 
-          {/* ФИО */}
           <div>
             <label className="block text-sm font-medium mb-1">ФИО</label>
             <input
@@ -123,7 +119,6 @@ const validate = () => {
             />
           </div>
 
-          {/* Телефоны */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Телефон клиента</label>
@@ -131,21 +126,18 @@ const validate = () => {
                 type="tel"
                 inputMode="numeric"
                 pattern="\d*"
-                placeholder="10–15 цифр"
+                placeholder="8XXXXXXXXXX"
                 value={formState.phone}
-                onChange={(e) =>
-                  setFormState({
-                    ...formState,
-                    phone: e.target.value.replace(/\D/g, ""),
-                  })
-                }
+                onChange={(e) => {
+                  let val = e.target.value.replace(/\D/g, "");
+                  if (val.startsWith("9")) val = "8" + val;
+                  setFormState({ ...formState, phone: val });
+                }}
                 className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
                   errors.phone ? "border-red-500" : ""
                 }`}
               />
-              {errors.phone && (
-                <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-              )}
+              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
             </div>
 
             <div className="flex-1">
@@ -154,14 +146,13 @@ const validate = () => {
                 type="tel"
                 inputMode="numeric"
                 pattern="\d*"
-                placeholder="10–15 цифр"
+                placeholder="8XXXXXXXXXX"
                 value={formState.guarantorPhone}
-                onChange={(e) =>
-                  setFormState({
-                    ...formState,
-                    guarantorPhone: e.target.value.replace(/\D/g, ""),
-                  })
-                }
+                onChange={(e) => {
+                  let val = e.target.value.replace(/\D/g, "");
+                  if (val.startsWith("9")) val = "8" + val;
+                  setFormState({ ...formState, guarantorPhone: val });
+                }}
                 className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
                   errors.guarantorPhone ? "border-red-500" : ""
                 }`}
@@ -172,7 +163,6 @@ const validate = () => {
             </div>
           </div>
 
-          {/* Сумма */}
           <div>
             <label className="block text-sm font-medium mb-1">Сумма оплаты</label>
             <input
@@ -192,7 +182,6 @@ const validate = () => {
             )}
           </div>
 
-          {/* Кнопка */}
           <div>
             <button
               type="submit"
