@@ -44,10 +44,15 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
   const handlePaid = () => setShowModal(true);
 
   const confirmPayment = () => {
-    const extra = paymentMethod === "cash"
-      ? { paymentMethod: "cash" }
-      : { paymentMethod: "transfer", transferTo };
+    const extra = {
+      paymentMethod,
+      ...(paymentMethod === "transfer" && { transferTo }),
+      paidAt: new Date().toISOString(),
+      updatedBy: user.name || user.email,
+    };
+
     onStatusChange(client.id, "paid", client.comment || "", extra);
+
     setShowModal(false);
     setPaymentMethod(null);
     setTransferTo("");
@@ -60,6 +65,7 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
         paidAt: null,
         paymentMethod: null,
         transferTo: null,
+        updatedBy: user.name || user.email,
       });
     }
   };
@@ -122,6 +128,10 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
         </p>
       )}
 
+      {client.updatedBy && (
+        <p className="text-sm text-gray-500">👤 Изменил: <strong>{client.updatedBy}</strong></p>
+      )}
+
       <div className="flex flex-wrap gap-2 mt-3">
         {client.status !== "paid" && (
           <button onClick={handlePaid} className="bg-green-600 text-white px-3 py-1 rounded">
@@ -130,7 +140,7 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
         )}
         {client.status !== "no_answer" && (
           <button
-            onClick={() => onStatusChange(client.id, "no_answer")}
+            onClick={() => onStatusChange(client.id, "no_answer", "", { updatedBy: user.name || user.email })}
             className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
           >
             Не отвечает
@@ -140,7 +150,10 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
           <button
             onClick={() => {
               const comment = prompt("Введите дату или текст переноса (например: 'на 21')");
-              if (comment) onStatusChange(client.id, "rescheduled", comment);
+              if (comment)
+                onStatusChange(client.id, "rescheduled", comment, {
+                  updatedBy: user.name || user.email,
+                });
             }}
             className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
           >
@@ -165,47 +178,55 @@ const ClientCard = ({ client, onStatusChange, onDelete, loading }) => {
         )}
       </div>
 
+      {/* Модалка */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg w-80 shadow">
             <h3 className="text-lg font-bold mb-4">Выберите метод оплаты</h3>
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => {
-                  setPaymentMethod("cash");
-                  confirmPayment();
-                }}
-                className="bg-green-500 text-white py-2 rounded"
+                onClick={() => setPaymentMethod("cash")}
+                className={`py-2 rounded ${
+                  paymentMethod === "cash"
+                    ? "bg-green-600 text-white"
+                    : "bg-green-100 text-green-800"
+                }`}
               >
                 Наличные
               </button>
               <button
                 onClick={() => setPaymentMethod("transfer")}
-                className="bg-blue-500 text-white py-2 rounded"
+                className={`py-2 rounded ${
+                  paymentMethod === "transfer"
+                    ? "bg-blue-600 text-white"
+                    : "bg-blue-100 text-blue-800"
+                }`}
               >
                 Перевод
               </button>
+
               {paymentMethod === "transfer" && (
-                <div className="flex flex-col gap-2">
-                  <select
-                    className="border px-3 py-2 rounded"
-                    value={transferTo}
-                    onChange={(e) => setTransferTo(e.target.value)}
-                  >
-                    <option value="">-- выберите получателя --</option>
-                    {DEFAULT_RECIPIENTS.map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={confirmPayment}
-                    disabled={!transferTo}
-                    className="bg-purple-600 text-white py-2 rounded disabled:opacity-50"
-                  >
-                    Подтвердить
-                  </button>
-                </div>
+                <select
+                  className="border px-3 py-2 rounded"
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                >
+                  <option value="">-- выберите получателя --</option>
+                  {DEFAULT_RECIPIENTS.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               )}
+
+              {(paymentMethod === "cash" || (paymentMethod === "transfer" && transferTo)) && (
+                <button
+                  onClick={confirmPayment}
+                  className="bg-purple-600 text-white py-2 rounded"
+                >
+                  Подтвердить
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setShowModal(false);
