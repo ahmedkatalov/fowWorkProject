@@ -17,6 +17,7 @@
     "@tailwindcss/vite": "^4.1.10",
     "antd": "^5.26.1",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
     "firebase": "^11.9.1",
     "framer-motion": "^12.18.1",
     "react": "^19.1.0",
