@@ -5,8 +5,11 @@ import { rtdb } from "../firebase/config";
 import { format, parseISO } from "date-fns";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { useSelector } from "react-redux";
 
 const PaymentsHistoryPage = () => {
+  const currentUser = useSelector((state) => state.user);
+
   const [clients, setClients] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [filteredClients, setFilteredClients] = useState([]);
@@ -19,7 +22,7 @@ const PaymentsHistoryPage = () => {
     phone: "",
     paymentAmount: "",
     paymentMethod: "cash",
-    transferTo: ""
+    transferTo: "",
   });
   const [undoData, setUndoData] = useState(null);
   const [editClient, setEditClient] = useState(null);
@@ -31,10 +34,12 @@ const PaymentsHistoryPage = () => {
       if (!data) return;
 
       const list = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-      const paid = list.filter(c => c.status === "paid" && c.paidAt);
+      const paid = list.filter((c) => c.status === "paid" && c.paidAt);
       setClients(paid);
 
-      const dates = [...new Set(paid.map(c => format(parseISO(c.paidAt), "yyyy-MM-dd")))].sort((a, b) => new Date(b) - new Date(a));
+      const dates = [
+        ...new Set(paid.map((c) => format(parseISO(c.paidAt), "yyyy-MM-dd"))),
+      ].sort((a, b) => new Date(b) - new Date(a));
       setAvailableDates(dates);
       if (!selectedDate && dates.length > 0) setSelectedDate(dates[0]);
     });
@@ -43,12 +48,14 @@ const PaymentsHistoryPage = () => {
 
   useEffect(() => {
     if (!selectedDate) return;
-    const filtered = clients.filter(c => format(parseISO(c.paidAt), "yyyy-MM-dd") === selectedDate);
+    const filtered = clients.filter(
+      (c) => format(parseISO(c.paidAt), "yyyy-MM-dd") === selectedDate
+    );
     setFilteredClients(filtered);
 
     const summary = {};
     let totalProfit = 0;
-    filtered.forEach(c => {
+    filtered.forEach((c) => {
       const amount = Number(c.paymentAmount || 0);
       totalProfit += amount;
       if (c.paymentMethod === "transfer" && c.transferTo) {
@@ -65,8 +72,13 @@ const PaymentsHistoryPage = () => {
   }, [clients, selectedDate]);
 
   const handleManualAdd = async () => {
-    const { fullName, phone, paymentAmount, paymentMethod, transferTo } = manualClient;
-    if (!fullName || !paymentAmount || (paymentMethod === "transfer" && !transferTo)) {
+    const { fullName, phone, paymentAmount, paymentMethod, transferTo } =
+      manualClient;
+    if (
+      !fullName ||
+      !paymentAmount ||
+      (paymentMethod === "transfer" && !transferTo)
+    ) {
       alert("Заполните все поля");
       return;
     }
@@ -78,13 +90,20 @@ const PaymentsHistoryPage = () => {
       paymentMethod,
       transferTo: paymentMethod === "transfer" ? transferTo : "",
       paidAt: `${selectedDate}T12:00:00.000Z`,
-      status: "paid"
+      status: "paid",
+      updatedBy: currentUser?.email || "Неизвестный",
     };
 
     const newRef = ref(rtdb, `clients/${Date.now()}`);
     await update(newRef, newClient);
     setManualModalOpen(false);
-    setManualClient({ fullName: "", phone: "", paymentAmount: "", paymentMethod: "cash", transferTo: "" });
+    setManualClient({
+      fullName: "",
+      phone: "",
+      paymentAmount: "",
+      paymentMethod: "cash",
+      transferTo: "",
+    });
   };
 
   const handleDeleteClient = async (client) => {
@@ -99,13 +118,13 @@ const PaymentsHistoryPage = () => {
       await update(logRef, {
         clientId: client.id,
         fullName: client.fullName,
-        deletedAt: new Date().toISOString()
+        deletedAt: new Date().toISOString(),
       });
 
       setUndoData(null);
     }, 5000);
 
-    setUndoData(prev => ({ ...prev, timeoutId }));
+    setUndoData((prev) => ({ ...prev, timeoutId }));
   };
 
   const exportToExcel = () => {
@@ -113,12 +132,15 @@ const PaymentsHistoryPage = () => {
       alert("Нет данных для экспорта.");
       return;
     }
-    const data = filteredClients.map(c => ({
-      "ФИО": c.fullName,
-      "Телефон": c.phone,
-      "Сумма": c.paymentAmount,
+    const data = filteredClients.map((c) => ({
+      ФИО: c.fullName,
+      Телефон: c.phone,
+      Сумма: c.paymentAmount,
       "Дата оплаты": format(parseISO(c.paidAt), "dd.MM.yyyy"),
-      "Метод оплаты": c.paymentMethod === "cash" ? "Наличные" : `Перевод на ${c.transferTo || ""}`
+      "Метод оплаты":
+        c.paymentMethod === "cash"
+          ? "Наличные"
+          : `Перевод на ${c.transferTo || ""}`,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -153,16 +175,26 @@ const PaymentsHistoryPage = () => {
             </button>
           </div>
 
-          <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="mb-4 w-full p-2 border rounded">
-            {availableDates.map(date => (
-              <option key={date} value={date}>{date}</option>
+          <select
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="mb-4 w-full p-2 border rounded"
+          >
+            {availableDates.map((date) => (
+              <option key={date} value={date}>
+                {date}
+              </option>
             ))}
           </select>
 
           <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-1">Общая прибыль за день:</h3>
+            <h3 className="text-lg font-semibold mb-1">
+              Общая прибыль за день:
+            </h3>
             {profit !== null ? (
-              <p className="text-green-700 font-bold">💰 {profit.toLocaleString()}₽</p>
+              <p className="text-green-700 font-bold">
+                💰 {profit.toLocaleString()}₽
+              </p>
             ) : (
               <p className="text-sm text-gray-500">Нет прибыли.</p>
             )}
@@ -171,30 +203,59 @@ const PaymentsHistoryPage = () => {
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-2">Сводка переводов:</h3>
             {Object.keys(summaryByRecipient).length === 0 ? (
-              <p className="text-sm text-gray-500">Нет переводов на эту дату.</p>
+              <p className="text-sm text-gray-500">
+                Нет переводов на эту дату.
+              </p>
             ) : (
               <ul className="text-sm space-y-1">
                 {Object.entries(summaryByRecipient).map(([name, amount]) => (
-                  <li key={name}>🔹 <strong>{name}</strong>: {amount.toLocaleString()}₽</li>
+                  <li key={name}>
+                    🔹 <strong>{name}</strong>: {amount.toLocaleString()}₽
+                  </li>
                 ))}
               </ul>
             )}
           </div>
 
           <ul className="space-y-3">
-            {filteredClients.map(c => (
-              <li key={c.id} className="p-3 border rounded bg-green-50 text-green-900 relative">
+            {filteredClients.map((c) => (
+              <li
+                key={c.id}
+                className="p-3 border rounded bg-green-50 text-green-900 relative"
+              >
                 <div className="font-medium">{c.fullName}</div>
                 <div className="text-sm">Тел: {c.phone}</div>
                 <div className="text-sm">Сумма: {c.paymentAmount}₽</div>
-                <div className="text-sm">Дата оплаты: {format(parseISO(c.paidAt), "dd.MM.yyyy")}</div>
+                <div className="text-sm">
+                  Дата оплаты: {format(parseISO(c.paidAt), "dd.MM.yyyy")}
+                </div>
                 {c.paymentMethod && (
                   <div className="text-sm">
-                    Метод оплаты: <strong>{c.paymentMethod === "cash" ? "Наличные" : `Перевод на ${c.transferTo}`}</strong>
+                    Метод оплаты:{" "}
+                    <strong>
+                      {c.paymentMethod === "cash"
+                        ? "Наличные"
+                        : `Перевод на ${c.transferTo}`}
+                    </strong>
                   </div>
                 )}
-                <button onClick={() => handleDeleteClient(c)} className="absolute top-2 right-2 text-red-500 text-sm hover:underline">Удалить</button>
-                <button onClick={() => setEditClient(c)} className="absolute top-2 right-16 text-blue-500 text-sm hover:underline">Редактировать</button>
+                {c.updatedBy && (
+                  <div className="text-sm text-gray-500">
+                    👤 Оплату добавил: {c.updatedBy}
+                  </div>
+                )}
+                <button
+                  onClick={() => handleDeleteClient(c)}
+                  className="absolute top-2 right-2 text-red-500 text-sm hover:underline"
+                >
+                  Удалить
+                </button>
+                <button
+                  onClick={() => setEditClient(c)}
+                  className="absolute top-2 right-16 text-blue-500 text-sm hover:underline"
+                >
+                  Редактировать
+                </button>
               </li>
             ))}
           </ul>
@@ -203,7 +264,10 @@ const PaymentsHistoryPage = () => {
 
       {undoData && (
         <div className="fixed bottom-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded shadow-lg">
-          <p>Удаление клиента <strong>{undoData.client.fullName}</strong> через 5 секунд...</p>
+          <p>
+            Удаление клиента <strong>{undoData.client.fullName}</strong> через 5
+            секунд...
+          </p>
           <button
             className="text-blue-600 underline mt-1"
             onClick={() => {
@@ -220,19 +284,76 @@ const PaymentsHistoryPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-md w-96 space-y-3">
             <h3 className="text-lg font-bold mb-2">Добавить оплату вручную</h3>
-            <input type="text" placeholder="ФИО" value={manualClient.fullName} onChange={(e) => setManualClient({ ...manualClient, fullName: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <input type="tel" placeholder="Телефон" value={manualClient.phone} onChange={(e) => setManualClient({ ...manualClient, phone: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <input type="number" placeholder="Сумма" value={manualClient.paymentAmount} onChange={(e) => setManualClient({ ...manualClient, paymentAmount: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <select value={manualClient.paymentMethod} onChange={(e) => setManualClient({ ...manualClient, paymentMethod: e.target.value })} className="w-full border px-3 py-2 rounded">
+            <input
+              type="text"
+              placeholder="ФИО"
+              value={manualClient.fullName}
+              onChange={(e) =>
+                setManualClient({ ...manualClient, fullName: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <input
+              type="tel"
+              placeholder="Телефон"
+              value={manualClient.phone}
+              onChange={(e) =>
+                setManualClient({ ...manualClient, phone: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <input
+              type="number"
+              placeholder="Сумма"
+              value={manualClient.paymentAmount}
+              onChange={(e) =>
+                setManualClient({
+                  ...manualClient,
+                  paymentAmount: e.target.value,
+                })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <select
+              value={manualClient.paymentMethod}
+              onChange={(e) =>
+                setManualClient({
+                  ...manualClient,
+                  paymentMethod: e.target.value,
+                })
+              }
+              className="w-full border px-3 py-2 rounded"
+            >
               <option value="cash">Наличные</option>
               <option value="transfer">Перевод</option>
             </select>
             {manualClient.paymentMethod === "transfer" && (
-              <input type="text" placeholder="Кому перевод" value={manualClient.transferTo} onChange={(e) => setManualClient({ ...manualClient, transferTo: e.target.value })} className="w-full border px-3 py-2 rounded" />
+              <input
+                type="text"
+                placeholder="Кому перевод"
+                value={manualClient.transferTo}
+                onChange={(e) =>
+                  setManualClient({
+                    ...manualClient,
+                    transferTo: e.target.value,
+                  })
+                }
+                className="w-full border px-3 py-2 rounded"
+              />
             )}
             <div className="flex justify-between mt-4">
-              <button onClick={handleManualAdd} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Сохранить</button>
-              <button onClick={() => setManualModalOpen(false)} className="text-gray-600 underline">Отмена</button>
+              <button
+                onClick={handleManualAdd}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                Сохранить
+              </button>
+              <button
+                onClick={() => setManualModalOpen(false)}
+                className="text-gray-600 underline"
+              >
+                Отмена
+              </button>
             </div>
           </div>
         </div>
@@ -242,15 +363,53 @@ const PaymentsHistoryPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-md w-96 space-y-3">
             <h3 className="text-lg font-bold mb-2">Редактировать клиента</h3>
-            <input type="text" placeholder="ФИО" value={editClient.fullName} onChange={(e) => setEditClient({ ...editClient, fullName: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <input type="tel" placeholder="Телефон" value={editClient.phone} onChange={(e) => setEditClient({ ...editClient, phone: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <input type="number" placeholder="Сумма" value={editClient.paymentAmount} onChange={(e) => setEditClient({ ...editClient, paymentAmount: e.target.value })} className="w-full border px-3 py-2 rounded" />
-            <select value={editClient.paymentMethod} onChange={(e) => setEditClient({ ...editClient, paymentMethod: e.target.value })} className="w-full border px-3 py-2 rounded">
+            <input
+              type="text"
+              placeholder="ФИО"
+              value={editClient.fullName}
+              onChange={(e) =>
+                setEditClient({ ...editClient, fullName: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <input
+              type="tel"
+              placeholder="Телефон"
+              value={editClient.phone}
+              onChange={(e) =>
+                setEditClient({ ...editClient, phone: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <input
+              type="number"
+              placeholder="Сумма"
+              value={editClient.paymentAmount}
+              onChange={(e) =>
+                setEditClient({ ...editClient, paymentAmount: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            />
+            <select
+              value={editClient.paymentMethod}
+              onChange={(e) =>
+                setEditClient({ ...editClient, paymentMethod: e.target.value })
+              }
+              className="w-full border px-3 py-2 rounded"
+            >
               <option value="cash">Наличные</option>
               <option value="transfer">Перевод</option>
             </select>
             {editClient.paymentMethod === "transfer" && (
-              <input type="text" placeholder="Кому перевод" value={editClient.transferTo} onChange={(e) => setEditClient({ ...editClient, transferTo: e.target.value })} className="w-full border px-3 py-2 rounded" />
+              <input
+                type="text"
+                placeholder="Кому перевод"
+                value={editClient.transferTo}
+                onChange={(e) =>
+                  setEditClient({ ...editClient, transferTo: e.target.value })
+                }
+                className="w-full border px-3 py-2 rounded"
+              />
             )}
             <div className="flex justify-between mt-4">
               <button
@@ -263,7 +422,12 @@ const PaymentsHistoryPage = () => {
               >
                 Сохранить
               </button>
-              <button onClick={() => setEditClient(null)} className="text-gray-600 underline">Отмена</button>
+              <button
+                onClick={() => setEditClient(null)}
+                className="text-gray-600 underline"
+              >
+                Отмена
+              </button>
             </div>
           </div>
         </div>
