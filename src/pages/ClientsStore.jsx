@@ -1,4 +1,3 @@
-// PaymentsHistoryPage.jsx
 import React, { useEffect, useState } from "react";
 import { ref, onValue, update, remove } from "firebase/database";
 import { rtdb } from "../firebase/config";
@@ -225,7 +224,22 @@ const PaymentsHistoryPage = () => {
               >
                 <div className="font-medium">{c.fullName}</div>
                 <div className="text-sm">Тел: {c.phone}</div>
-                <div className="text-sm">Сумма: {c.paymentAmount}₽</div>
+                <div className="text-sm">
+  Сумма:{" "}
+  {c.originalAmount && c.originalAmount !== c.paymentAmount ? (
+    <>
+      <span className="line-through text-gray-400 mr-1">
+        {Number(c.originalAmount).toLocaleString()}₽
+      </span>
+      <span className="text-black font-medium">
+        {Number(c.paymentAmount).toLocaleString()}₽
+      </span>
+    </>
+  ) : (
+    <span>{Number(c.paymentAmount).toLocaleString()}₽</span>
+  )}
+</div>
+
                 <div className="text-sm">
                   Дата оплаты: {format(parseISO(c.paidAt), "dd.MM.yyyy")}
                 </div>
