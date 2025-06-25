@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ref, push } from "firebase/database";
+import { ref, push, get } from "firebase/database";
 import { rtdb } from "../firebase/config";
 import { useSelector } from "react-redux";
+import { isSameDay, parseISO } from "date-fns";
 
 const AddClientForm = () => {
   const currentUser = useSelector((state) => state.user);
@@ -16,24 +17,25 @@ const AddClientForm = () => {
   const [timing, setTiming] = useState("today");
   const [errors, setErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   if (currentUser?.role !== "admin") return null;
 
   const validate = () => {
     const newErrors = {};
     const phoneRegex = /^\d+$/;
-    const amountRegex = /^\d+$/;
 
-    if (formState.phone && !phoneRegex.test(formState.phone)) {
-      newErrors.phone = "Введите только цифры";
-    }
+    if (!formState.fullName.trim()) newErrors.fullName = "Введите имя клиента";
+    if (!formState.phone) newErrors.phone = "Введите номер клиента";
+    else if (!phoneRegex.test(formState.phone)) newErrors.phone = "Введите только цифры";
 
     if (formState.guarantorPhone && !phoneRegex.test(formState.guarantorPhone)) {
       newErrors.guarantorPhone = "Введите только цифры";
     }
 
-    if (!amountRegex.test(formState.paymentAmount)) {
-      newErrors.paymentAmount = "Введите только цифры";
+    const amount = Number(formState.paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      newErrors.paymentAmount = "Введите корректную сумму";
     }
 
     setErrors(newErrors);
@@ -42,29 +44,56 @@ const AddClientForm = () => {
 
   const handleAdd = async () => {
     if (!validate()) return;
+    setLoading(true);
 
-    const clientsRef = ref(rtdb, "clients");
-    const date = new Date();
-    if (timing === "overdue") date.setDate(date.getDate() - 1);
+    try {
+      const clientsRef = ref(rtdb, "clients");
+      const snapshot = await get(clientsRef);
+      const existingClients = snapshot.exists() ? snapshot.val() : {};
+      const now = new Date();
 
-    const newClient = {
-      ...formState,
-      createdAt: date.toISOString(),
-    };
+      if (timing === "overdue") now.setDate(now.getDate() - 1);
 
-    await push(clientsRef, newClient);
+      const phone = formState.phone;
 
-    setFormState({
-      fullName: "",
-      phone: "",
-      guarantorPhone: "",
-      paymentAmount: "",
-      status: "pending",
-      comment: "",
-    });
-    setTiming("today");
-    setErrors({});
-    setShowForm(false);
+      const isDuplicate = Object.values(existingClients).some((client) => {
+        return (
+          client.phone === phone &&
+          client.createdAt &&
+          isSameDay(parseISO(client.createdAt), now)
+        );
+      });
+
+      if (isDuplicate) {
+        alert("Клиент с таким номером уже добавлен сегодня.");
+        setLoading(false);
+        return;
+      }
+
+      const newClient = {
+        ...formState,
+        createdAt: now.toISOString(),
+      };
+
+      await push(clientsRef, newClient);
+
+      setFormState({
+        fullName: "",
+        phone: "",
+        guarantorPhone: "",
+        paymentAmount: "",
+        status: "pending",
+        comment: "",
+      });
+      setTiming("today");
+      setErrors({});
+      setShowForm(false);
+    } catch (error) {
+      console.error("Ошибка при добавлении клиента:", error);
+      alert("Ошибка при добавлении. Попробуйте позже.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -117,6 +146,7 @@ const AddClientForm = () => {
               className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
           </div>
 
           <div className="flex flex-col md:flex-row gap-4">
@@ -185,9 +215,12 @@ const AddClientForm = () => {
           <div>
             <button
               type="submit"
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition w-full sm:w-auto"
+              disabled={loading}
+              className={`bg-green-600 text-white px-4 py-2 rounded w-full sm:w-auto transition ${
+                loading ? "opacity-50 cursor-not-allowed" : "hover:bg-green-700"
+              }`}
             >
-              Добавить клиента
+              {loading ? "Добавление..." : "Добавить клиента"}
             </button>
           </div>
         </form>
