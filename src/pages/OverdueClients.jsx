@@ -3,13 +3,14 @@ import React, { useEffect, useState } from "react";
 import { ref, onValue, update, remove } from "firebase/database";
 import { rtdb } from "../firebase/config";
 import ClientCard from "../components/ClientCard";
-import { isToday, parseISO } from "date-fns";
+import { isToday, parseISO, differenceInCalendarMonths } from "date-fns";
 import { useSelector } from "react-redux";
 
 const OverdueClients = () => {
   const user = useSelector((state) => state.user);
   const [clients, setClients] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [overdueFilter, setOverdueFilter] = useState("all");
 
   useEffect(() => {
     const clientsRef = ref(rtdb, "clients");
@@ -41,14 +42,17 @@ const OverdueClients = () => {
     const isTodayPaid = paid && isToday(paid);
     const isCreatedToday = created && isToday(created);
 
-    // Если клиент только сегодня добавлен, исключаем из всех фильтров
     if (isCreatedToday) return false;
 
-    // Отображаем оплаченных клиентов только если они оплачены СЕГОДНЯ
     if (c.status === "paid") {
       if (!isTodayPaid) return false;
       return filter === "all" || filter === "paid";
     }
+
+    const monthsOverdue = created ? differenceInCalendarMonths(new Date(), created) : 0;
+
+    if (overdueFilter === "1month" && monthsOverdue !== 1) return false;
+    if (overdueFilter === "2month" && monthsOverdue !== 2) return false;
 
     return filter === "all" || c.status === filter;
   });
@@ -63,8 +67,14 @@ const OverdueClients = () => {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {["all", "paid", "rescheduled", "no_answer", "pending"].map((val) => (
+      <div className="flex flex-wrap gap-2 mb-2">
+        {[
+          ["all", "Все"],
+          ["paid", "Оплачено"],
+          ["rescheduled", "Перенос"],
+          ["no_answer", "Не отвечает"],
+          ["pending", "Ожидание"],
+        ].map(([val, label]) => (
           <button
             key={val}
             onClick={() => setFilter(val)}
@@ -72,15 +82,25 @@ const OverdueClients = () => {
               filter === val ? "bg-blue-600 text-white" : "bg-white text-gray-700"
             }`}
           >
-            {val === "all"
-              ? "Все"
-              : val === "paid"
-              ? "Оплачено"
-              : val === "rescheduled"
-              ? "Перенос"
-              : val === "no_answer"
-              ? "Не отвечает"
-              : "Ожидание"}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {[
+          ["all", "Все сроки"],
+          ["1month", "Просрочка 1 месяц"],
+          ["2month", "Просрочка 2 месяца"],
+        ].map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setOverdueFilter(val)}
+            className={`px-3 py-1 rounded text-sm border ${
+              overdueFilter === val ? "bg-purple-600 text-white" : "bg-white text-gray-700"
+            }`}
+          >
+            {label}
           </button>
         ))}
       </div>

@@ -1,3 +1,4 @@
+// AddClientForm.jsx
 import React, { useState } from "react";
 import { ref, push, get } from "firebase/database";
 import { rtdb } from "../firebase/config";
@@ -53,6 +54,8 @@ const AddClientForm = () => {
       const now = new Date();
 
       if (timing === "overdue") now.setDate(now.getDate() - 1);
+      else if (timing === "overdue_1m") now.setMonth(now.getMonth() - 1);
+      else if (timing === "overdue_2m") now.setMonth(now.getMonth() - 2);
 
       const phone = formState.phone;
 
@@ -65,7 +68,7 @@ const AddClientForm = () => {
       });
 
       if (isDuplicate) {
-        alert("Клиент с таким номером уже добавлен сегодня.");
+        alert("Клиент с таким номером уже добавлен на выбранную дату.");
         setLoading(false);
         return;
       }
@@ -133,6 +136,8 @@ const AddClientForm = () => {
             >
               <option value="today">Сегодня</option>
               <option value="overdue">Просрочено</option>
+              <option value="overdue_1m">Просрочка 1 месяц</option>
+              <option value="overdue_2m">Просрочка 2 месяца</option>
             </select>
           </div>
 

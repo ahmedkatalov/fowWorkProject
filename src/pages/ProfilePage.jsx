@@ -1,3 +1,4 @@
+// ProfilePage.jsx
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { signOut } from "firebase/auth";
@@ -91,10 +92,11 @@ const ProfilePage = () => {
     0
   );
 
-  const totalDebt = Object.values(profitHistory).reduce(
-    (sum, d) => sum + (getValidAmount(d.debt) - getValidAmount(d.profit)),
-    0
-  );
+  // 💰 Фактическая текущая задолженность по всем клиентам
+  const totalCurrentDebt = clients.reduce((sum, c) => {
+    const isPaid = c.status === "paid";
+    return isPaid ? sum : sum + getValidAmount(c.paymentAmount);
+  }, 0);
 
   const handleClearHistory = () => {
     if (!window.confirm("Удалить всю историю?")) return;
@@ -144,11 +146,8 @@ const ProfilePage = () => {
           </div>
 
           <div className="mb-6 space-y-3 text-sm">
-            <div className="p-3 bg-green-50 rounded text-green-800">
-              ✅ <strong>Общая прибыль (из истории):</strong> {totalProfit.toLocaleString()}₽
-            </div>
             <div className="p-3 bg-red-50 rounded text-red-800">
-              💸 <strong>Общая задолженность (из истории):</strong> {totalDebt.toLocaleString()}₽
+              💸 <strong>Общая задолженность (в реальном времени):</strong> {totalCurrentDebt.toLocaleString()}₽
             </div>
           </div>
 

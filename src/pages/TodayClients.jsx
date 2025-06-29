@@ -37,8 +37,13 @@ const TodayClients = () => {
   const removeClient = (id) => remove(ref(rtdb, `clients/${id}`));
 
   const filtered = clients.filter((c) => {
-    const isTodayClient = c.createdAt && isToday(parseISO(c.createdAt));
-    return isTodayClient && (filter === "all" || c.status === filter);
+    const createdToday = c.createdAt && isToday(parseISO(c.createdAt));
+    const paidToday = c.paidAt && isToday(parseISO(c.paidAt));
+
+    const shouldShowToday =
+      createdToday || (c.status === "paid" && paidToday);
+
+    return shouldShowToday && (filter === "all" || c.status === filter);
   });
 
   const totalTodayDebt = filtered
