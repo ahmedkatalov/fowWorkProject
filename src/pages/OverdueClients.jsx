@@ -1,4 +1,3 @@
-// OverdueClients.jsx
 import React, { useEffect, useState } from "react";
 import { ref, onValue, update, remove } from "firebase/database";
 import { rtdb } from "../firebase/config";
@@ -19,7 +18,9 @@ const OverdueClients = () => {
       if (data) {
         const list = Object.entries(data).map(([id, val]) => ({ id, ...val }));
         setClients(list);
-      } else setClients([]);
+      } else {
+        setClients([]);
+      }
     });
     return () => unsub();
   }, []);
@@ -45,14 +46,16 @@ const OverdueClients = () => {
     if (isCreatedToday) return false;
 
     if (c.status === "paid") {
-      if (!isTodayPaid) return false;
-      return filter === "all" || filter === "paid";
+      return isTodayPaid && (filter === "all" || filter === "paid");
     }
 
     const monthsOverdue = created ? differenceInCalendarMonths(new Date(), created) : 0;
 
     if (overdueFilter === "1month" && monthsOverdue !== 1) return false;
     if (overdueFilter === "2month" && monthsOverdue !== 2) return false;
+    if (overdueFilter !== "all" && overdueFilter !== "1month" && overdueFilter !== "2month") {
+      return false;
+    }
 
     return filter === "all" || c.status === filter;
   });

@@ -11,6 +11,7 @@ import {
 import TodayClients from "./pages/TodayClients";
 import OverdueClients from "./pages/OverdueClients";
 import ProfilePage from "./pages/ProfilePage";
+import {SearchClient} from "./components/SearchClient"
 import AuthPage from "./components/AuthPage";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./redux/store";
@@ -79,6 +80,16 @@ const Layout = () => {
         >
           История клиентов
         </NavLink>
+        <NavLink
+          to="/search"
+          className={({ isActive }) =>
+            isActive
+              ? "font-semibold text-blue-600"
+              : "text-gray-600 hover:text-blue-600"
+          }
+        >
+          Найти клиента
+        </NavLink>
       </nav>
 
       <Routes>
@@ -86,6 +97,7 @@ const Layout = () => {
         <Route path="/overdue" element={<OverdueClients />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/payStore" element={<PaymentsHistoryPage />} />
+        <Route path="/search" element={<SearchClient />} />
         <Route path="*" element={<TodayClients />} />
       </Routes>
     </div>
